@@ -1,0 +1,302 @@
+basePath: /
+definitions:
+  domain.AuthResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/domain.User'
+    type: object
+  domain.ErrorResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  domain.FileInfo:
+    properties:
+      created_at:
+        type: string
+      download_url:
+        type: string
+      filename:
+        type: string
+      id:
+        type: integer
+      size:
+        type: integer
+      status:
+        type: string
+    type: object
+  domain.FileListResponse:
+    properties:
+      files:
+        items:
+          $ref: '#/definitions/domain.FileInfo'
+        type: array
+      total:
+        type: integer
+    type: object
+  domain.ListVideosResponse:
+    properties:
+      success:
+        type: boolean
+      videos:
+        items:
+          $ref: '#/definitions/domain.Video'
+        type: array
+    type: object
+  domain.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  domain.ProcessingResult:
+    properties:
+      frame_count:
+        type: integer
+      images:
+        items:
+          type: string
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+      video_id:
+        type: integer
+      zip_path:
+        type: string
+    type: object
+  domain.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  domain.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      password:
+        description: omitempty so we don't return it in JSON
+        type: string
+    type: object
+  domain.Video:
+    properties:
+      created_at:
+        type: string
+      filename:
+        type: string
+      frame_count:
+        type: integer
+      id:
+        type: integer
+      message:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+      zip_path:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API for uploading videos and managing their processing.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Fiap X Video Processor API
+  version: "1.0"
+paths:
+  /api/status:
+    get:
+      description: Retrieves a list of all processed ZIP files.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.FileListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: List all processed files
+      tags:
+      - videos
+  /api/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Receives a video file, saves it, and publishes a processing event.
+      parameters:
+      - description: Video file
+        in: formData
+        name: video
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ProcessingResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ProcessingResult'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/domain.ProcessingResult'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ProcessingResult'
+      security:
+      - ApiKeyAuth: []
+      summary: Upload and process a video
+      tags:
+      - videos
+  /api/videos:
+    get:
+      description: Retrieves a list of all videos uploaded by the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ListVideosResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: List user videos
+      tags:
+      - videos
+  /download/{filename}:
+    get:
+      description: Downloads the ZIP file containing extracted frames for a processed
+        video.
+      parameters:
+      - description: ZIP filename
+        in: path
+        name: filename
+        required: true
+        type: string
+      produces:
+      - application/zip
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      summary: Download processed video
+      tags:
+      - videos
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Logs in a user and returns a JWT token.
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/domain.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      summary: Authenticate user
+      tags:
+      - auth
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account with email, password, and name.
+      parameters:
+      - description: Registration data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/domain.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - auth
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

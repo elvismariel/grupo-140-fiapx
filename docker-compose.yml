@@ -1,0 +1,173 @@
+
+services:
+  nats:
+    image: nats:alpine
+    container_name: nats
+    profiles:
+      - nats
+      - all
+    ports:
+      - "4222:4222"
+      - "6222:6222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
+    command:
+      - "--name=nats"
+      - "--cluster_name=nats"
+      - "--js"
+      - "--sd=/data"
+    networks:
+      fiapx:
+        aliases:
+          - nats
+
+  nats-box:
+    image: natsio/nats-box:latest
+    container_name: nats-box
+    entrypoint: /bin/sh
+    stdin_open: true
+    tty: true
+    profiles:
+      - nats
+      - all
+    depends_on:
+      - nats
+    environment:
+      - NATS_URL=nats://nats:4222
+    networks:
+      fiapx:
+        aliases:
+          - nats-box
+
+  db:
+    image: postgres:15-alpine
+    container_name: fiapx-db
+    restart: always
+    profiles:
+      - api
+      - all
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fiapx_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      fiapx:
+        aliases:
+          - db
+
+  api:
+    build:
+      context: ./fiapx-api
+      dockerfile: Dockerfile
+    container_name: fiapx-api
+    restart: on-failure
+    profiles:
+      - api
+      - all
+    depends_on:
+      - db
+      - nats
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=fiapx_db
+      - PORT=8080
+      - JWT_SECRET=fiapx-secret-key
+      - NATS_URL=nats://nats:4222
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./fiapx-api:/app
+      - ./data/video/uploads:/app/uploads
+      - ./data/video/outputs:/app/outputs
+    networks:
+      fiapx:
+        aliases:
+          - api
+
+  worker:
+    build:
+      context: ./fiapx-worker
+      dockerfile: Dockerfile
+    container_name: fiapx-worker
+    restart: on-failure
+    profiles:
+      - worker
+      - all
+    depends_on:
+      - db
+      - nats
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=fiapx_db
+      - NATS_URL=nats://nats:4222
+    volumes:
+      - ./fiapx-worker:/app
+      - ./data/video/uploads:/app/uploads
+      - ./data/video/outputs:/app/outputs
+    ports:
+      - "9090:9090"
+    networks:
+      fiapx:
+        aliases:
+          - worker
+
+  victoria-metrics:
+    image: victoriametrics/victoria-metrics:latest
+    container_name: victoria-metrics
+    profiles:
+      - monitor
+      - all
+    ports:
+      - "8428:8428"
+    volumes:
+      - vm_data:/storage
+      - ./data/prometheus/prometheus.yml:/prometheus.yml
+    command:
+      - "--promscrape.config=/prometheus.yml"
+      - "--storageDataPath=/storage"
+    networks:
+      fiapx:
+        aliases:
+          - victoria-metrics
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    profiles:
+      - monitor
+      - all
+    depends_on:
+      - victoria-metrics
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./data/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      fiapx:
+        aliases:
+          - grafana
+
+volumes:
+  nats_data:
+  postgres_data:
+  vm_data:
+  grafana_data:
+
+networks:
+  fiapx:
+    name: fiapx
+    driver: bridge
