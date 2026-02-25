@@ -2,7 +2,7 @@
 
 # Configuration
 API_URL="http://localhost:8080"
-EMAIL="test_1770841633712023786@example.com"
+EMAIL="user_test@example.com"
 PASSWORD="password123"
 NAME="Test User"
 
