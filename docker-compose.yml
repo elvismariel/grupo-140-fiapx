@@ -61,9 +61,10 @@ services:
           - db
 
   api:
-    build:
-      context: ./fiapx-api
-      dockerfile: Dockerfile
+    # build:
+    #   context: ./fiapx-api
+    #   dockerfile: Dockerfile
+    image: elvismariel/fiapx-api:latest
     container_name: fiapx-api
     restart: on-failure
     profiles:
@@ -93,9 +94,10 @@ services:
           - api
 
   worker:
-    build:
-      context: ./fiapx-worker
-      dockerfile: Dockerfile
+    # build:
+    #   context: ./fiapx-worker
+    #   dockerfile: Dockerfile
+    image: elvismariel/fiapx-worker:latest
     container_name: fiapx-worker
     restart: on-failure
     profiles:
