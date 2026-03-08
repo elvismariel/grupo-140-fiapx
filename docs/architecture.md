@@ -6,19 +6,35 @@ Este documento descreve o design arquitetural, a stack tecnológica e os padrõe
 
 O FiapX é uma aplicação baseada em microsserviços projetada para lidar com uploads de vídeo e processamento assíncrono. Ele permite que os usuários se registrem, façam upload de vídeos e recebam um arquivo ZIP contendo os quadros (frames) extraídos do vídeo.
 
-### Arquitetura de Alto Nível
+### Modelagem C4 (Container Diagram)
 
-O sistema é composto por dois serviços principais que se comunicam de forma assíncrona:
+Para uma visão padronizada da arquitetura, o diagrama de container abaixo ilustra as responsabilidades de cada bloco do sistema, a linguagem e as integrações:
 
 ```mermaid
-graph LR
-    User([Usuário]) --> API[FiapX API]
-    API --> DB[(PostgreSQL)]
-    API --> NATS{NATS JetStream}
-    NATS --> Worker[FiapX Worker]
-    Worker --> DB
-    Worker --> Storage[Armazenamento Compartilhado]
-    API --> Storage
+C4Container
+    title C4 Model - FiapX Container Diagram
+
+    Person(user, "Usuário", "Faz upload de vídeos para extração de frames.")
+    
+    System_Boundary(c1, "FiapX") {
+        Container(api, "FiapX API", "Go, Gin", "Gerencia autenticação via JWT, recebe uploads e fornece status do processamento.")
+        ContainerQueue(nats, "NATS JetStream", "Mensageria", "Fila de eventos de upload pendentes (Worker Queue).")
+        Container(worker, "FiapX Worker", "Go, FFmpeg", "Processa os vídeos assincronamente extraindo frames e gera o arquivo ZIP.")
+        ContainerDb(db, "Banco de Dados", "PostgreSQL", "Armazena dados de usuários, metadados dos vídeos e o status das execuções.")
+        Container(storage, "Armazenamento Local", "File System", "Armazena vídeos brutos temporários e arquivos ZIP finais.")
+    }
+
+    System_Ext(email, "Serviço de E-mail", "Sistema externo (fictício) para envio de notificações/alertas de falha.")
+
+    Rel(user, api, "Usa", "REST/HTTPS")
+    Rel(api, db, "Lê/Grava dados", "TCP/IP")
+    Rel(api, storage, "Salva vídeo enviado", "File System")
+    Rel(api, nats, "Publica evento de upload", "TCP/IP")
+    
+    Rel(nats, worker, "Consome eventos de", "TCP/IP")
+    Rel(worker, storage, "Busca vídeo e grava ZIP", "File System")
+    Rel(worker, db, "Atualiza status", "TCP/IP")
+    Rel(worker, email, "Dispara notificação de erro", "SMTP")
 ```
 
 ---

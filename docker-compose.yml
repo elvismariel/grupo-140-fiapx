@@ -22,24 +22,6 @@ services:
         aliases:
           - nats
 
-  nats-box:
-    image: natsio/nats-box:latest
-    container_name: nats-box
-    entrypoint: /bin/sh
-    stdin_open: true
-    tty: true
-    profiles:
-      - nats
-      - all
-    depends_on:
-      - nats
-    environment:
-      - NATS_URL=nats://nats:4222
-    networks:
-      fiapx:
-        aliases:
-          - nats-box
-
   db:
     image: postgres:15-alpine
     container_name: fiapx-db
